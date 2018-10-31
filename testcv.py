@@ -26,3 +26,5 @@ cv2.imshow("Facedetect", img)
 cv2.waitKey(0)
 cv2.imwrite(r'C:\Users\admin\desktop\img.jpg', img, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
 cv2.destroyAllWindows()
+
+#update by 20181031
