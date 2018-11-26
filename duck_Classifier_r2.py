@@ -176,15 +176,15 @@ def duck_test(dataset, pmu, nmu, psigma, nsigma):
 def GaussianFunc1(dataset, mu, sigma):
     '''    根據指定參數mu、sigma計算多元變量的高斯函数    '''
     res = 0.0
-    for i in range(len(dataset)):
+    for i in range(len(dataset[0][0])):
         b = g = r = 0.0
         # 計算 B G R 鴨體的多變量高斯函數 帶入鴨體的平均變量及變異數
         for j in range(len(dataset[0][0])):
-            X = dataset[i][0][j]
+            X = dataset[0][i][j]
             b += pdf_multivariate_gauss(X, mu[0], sigma[0])
-            X = dataset[i][1][j]
+            X = dataset[1][i][j]
             g += pdf_multivariate_gauss(X, mu[1], sigma[1])
-            X = dataset[i][2][j]
+            X = dataset[2][i][j]
             r += pdf_multivariate_gauss(X, mu[2], sigma[2])
         res = b * g * r
     return res
