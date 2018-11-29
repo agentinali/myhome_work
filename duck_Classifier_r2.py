@@ -3,6 +3,8 @@
 此版本加入
 1.裝飾器功能，計算函數執行時間 timer()
 2.修改判別函式以簡單結構化的貝葉斯判別分類
+  以及加門檻值減少雜訊
+	
 '''
 import cv2
 import numpy as np
@@ -41,7 +43,8 @@ def estimate_gaussian(dataset):
 def gaussian_mle(data):
 	''' 計算 MLE mu及sigma  以高斯公式計算'''
 	mu = data.mean(axis=0)
-	var = (data - mu).T @ (data - mu) / (data.shape[0] - 1)  # this is slightly suboptimal, but instructive
+	var = (data - mu).T @ (data - mu) / data.shape[0]  # this is slightly suboptimal, but instructive
+	# var = (data - mu).T @ (data - mu) / (data.shape[0] - 1)  # this is slightly suboptimal, but instructive
 	return mu, var
 
 
@@ -158,7 +161,15 @@ def classify(dataset, pmu, nmu, psigma, nsigma):
 	'''    基於貝葉斯判別分類　 '''
 	res1 = GaussianFunc1(dataset, pmu, psigma)  # 傳入正樣本的mu、sigma
 	res2 = GaussianFunc1(dataset, nmu, nsigma)  # 傳入負樣本的mu、sigma
-	if res1 > res2:
+	if res1 == 0 : return 0
+
+	if res1 > 0 and res2 == 0:
+		if np.log(res1) > -350:
+			return 1
+		else:
+			return 0
+
+	if (np.log(res2)) / (np.log(res2) + np.log(res1)) > 0.85:
 		return 1
 	else:
 		return 0
@@ -197,7 +208,7 @@ def read_full_duck(img, yp_min, yp_max, xp_max, w, h, p_mu_hat, p_sigma_hat, n_m
 	for j in range(yp_min, yp_max, h):
 		x = 0
 		y = j
-		print(j)
+		# print(j)
 		for i in range(0, xp_max, w):
 			p_data = []
 			x = i
@@ -224,7 +235,7 @@ def read_full_duck_thread(img, yp_min, yp_max, xp_max, w, h, p_mu_hat, p_sigma_h
 	for j in range(yp_min, yp_max, h):
 		x = 0
 		y = j
-		print(j)
+		# print(j)
 		for i in range(0, xp_max, w):
 			p_data = []
 			x = i
@@ -276,13 +287,13 @@ def read_full_duck_all(img, yp_min, yp_max, xp_max, w, h, p_mu_hat, p_sigma_hat,
 		if x + w >= xp_max:
 			x = 0
 			y = y + h
-			print(y)
+			# print(y)
 
 
 if __name__ == '__main__':
-	p_dataset, n_dataset = importdata('output8')  # 載入8x8正負樣本資料路徑
+	# p_dataset, n_dataset = importdata('output8')  # 載入8x8正負樣本資料路徑
 	# p_dataset, n_dataset = importdata('output4')  # 載入4x4正負樣本資料路徑
-	# p_dataset, n_dataset = importdata('output2')  # 載入2x2正負樣本資料路徑
+	p_dataset, n_dataset = importdata('output2')  # 載入2x2正負樣本資料路徑
 	
 	p_dataset = np.array(p_dataset)
 	n_dataset = np.array(n_dataset)
@@ -307,12 +318,12 @@ if __name__ == '__main__':
 	test(n_test_data, p_mu_hat, n_mu_hat, p_sigma_hat, n_sigma_hat)
 	
 	# 讀入養鴨場全圖
-	img = cv2.imread(r".\full_duck.jpg")
+	img = cv2.imread(r".\full_duck_003.jpg")
 	
 	# 圖檔的長度與寬度
 	yp_length = img.shape[0]
 	xp_length = img.shape[1]
-	# 裁切區域的長度與寬度
+	# 裁切區域的長度與寬度與樣本相同
 	w = p_dataset.shape[2]
 	h = p_dataset.shape[3]
 	
@@ -321,37 +332,38 @@ if __name__ == '__main__':
 	del p_test_data, n_test_data
 	del p_train_data, n_train_data
 	
-	
 	# 記錄開始時間，併入裝飾器中計算
 	# 讀取養鴨場圖檔資料並將非鴨體設成黑色 while loop
-	read_full_duck_all(img, 0, yp_length, xp_length, w, h, p_mu_hat, p_sigma_hat, n_mu_hat, n_sigma_hat)
+	# read_full_duck_all(img, 0, yp_length, xp_length, w, h, p_mu_hat, p_sigma_hat, n_mu_hat, n_sigma_hat)
 	# 讀取養鴨場圖檔資料並將非鴨體設成黑色 for loop
-	#read_full_duck(img, 0, yp_length, xp_length, w, h, p_mu_hat, p_sigma_hat, n_mu_hat, n_sigma_hat)
+	read_full_duck(img, 0, yp_length, xp_length, w, h, p_mu_hat, p_sigma_hat, n_mu_hat, n_sigma_hat)
 	
 	# 將結果存成新圖檔
 	cv2.imwrite(r".\Result_duck.jpg", img)
-	
-	
-	# 以下是以執行緒方式
-	#
-	# img = cv2.imread(r".\full_duck.jpg")
-	#
-	# # 建立數個執行緒去執行判別替換所有非鴨體像素為黑色像素
-	# r1 = threading.Thread(target=read_full_duck_thread, args=(img, 0, 4000, xp_length, w, h, p_mu_hat, p_sigma_hat, n_mu_hat, n_sigma_hat))
-	# r2 = threading.Thread(target=read_full_duck_thread, args=(img, 4000, 8000, xp_length, w, h, p_mu_hat, p_sigma_hat, n_mu_hat, n_sigma_hat))
-	# r3 = threading.Thread(target=read_full_duck_thread, args=(img, 8000, yp_length, xp_length, w, h, p_mu_hat, p_sigma_hat, n_mu_hat, n_sigma_hat))
-	# r7 = threading.Thread(target=drow_full_duck, args=(img, w, h))
-	#
-	# r1.start()
-	# r2.start()
-	# r3.start()
-	# r7.start()
-	#
-	# r1.join()
-	# r2.join()
-	# r3.join()
-	# r7.join()
-	#
-	# # 輸出新的圖像
-	# cv2.imwrite(r".\duckCopy2.jpg", img1)
-	#
+
+
+# # 以下是以執行緒方式
+# #
+# img = cv2.imread(r".\full_duck.jpg")
+# img1 = cv2.imread(r".\full_duck.jpg")
+# img2 = cv2.imread(r".\full_duck.jpg")
+# img3 = cv2.imread(r".\full_duck.jpg")
+#
+# # 建立數個執行緒去執行判別替換所有非鴨體像素為黑色像素
+# r1 = threading.Thread(target=read_full_duck_thread, args=(img1, 0, 4000, xp_length, w, h, p_mu_hat, p_sigma_hat, n_mu_hat, n_sigma_hat))
+# r2 = threading.Thread(target=read_full_duck_thread, args=(img2, 4000, 8000, xp_length, w, h, p_mu_hat, p_sigma_hat, n_mu_hat, n_sigma_hat))
+# r3 = threading.Thread(target=read_full_duck_thread, args=(img3, 8000, yp_length, xp_length, w, h, p_mu_hat, p_sigma_hat, n_mu_hat, n_sigma_hat))
+# r7 = threading.Thread(target=drow_full_duck, args=(img, w, h))
+#
+# r1.start()
+# r2.start()
+# r3.start()
+# r7.start()
+#
+# r1.join()
+# r2.join()
+# r3.join()
+# r7.join()
+#
+# # 輸出新的圖像
+# cv2.imwrite(r".\duckCopy2.jpg", img1)
